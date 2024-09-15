@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import discord
+from typing import Literal
 from discord.ext import commands
 
 load_dotenv()
@@ -11,16 +12,72 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='??', intents=intents)
 
+# Initialize Slash Commands
+@bot.event
+async def on_ready():
+    guild_id = 1281765355122987110
+    guild = discord.Object(id=guild_id)
+
+    # sets up the command tree
+    bot.tree.copy_global_to(guild=guild)
+    await bot.tree.sync(guild=guild)
+
 # Player class to store player info
 class Player:
-    def __init__(self, battle_tag, rank, preferred_role, secondary_role):
+    def __init__(self, battle_tag, preferred_role, division, tier, sr, secondary_role):
         self.battle_tag = battle_tag
-        self.rank = int(rank)  # Assuming rank is an integer
-        self.preferred_role = preferred_role
-        self.secondary_role = secondary_role
+        self.preferred_role = preferred_role.lower()
+        self.division = division.lower()
+        self.tier = tier
+        self.sr = sr
+        self.secondary_role = secondary_role.lower()
 
 # Global player pool to store current PUG players
 player_pool = []
+
+# Conversion dictionary for ow2 rank to SR
+conversion = {
+    "Champion1": 4400,
+    "Champion2": 4300,
+    "Champion3": 4200,
+    "Champion4": 4100,
+    "Champion5": 4000,
+    "Grandmaster1": 4400,
+    "Grandmaster2": 4300,
+    "Grandmaster3": 4200,
+    "Grandmaster4": 4100,
+    "Grandmaster5": 4000,
+    "Master1": 3900,
+    "Master2": 3800,
+    "Master3": 3700,
+    "Master4": 3600,
+    "Master5": 3500,
+    "Diamond1": 3400,
+    "Diamond2": 3300,
+    "Diamond3": 3200,
+    "Diamond4": 3100,
+    "Diamond5": 3000,
+    "Platinum1": 2900,
+    "Platinum2": 2800,
+    "Platinum3": 2700,
+    "Platinum4": 2600,
+    "Platinum5": 2500,
+    "Gold1": 2400,
+    "Gold2": 2300,
+    "Gold3": 2200,
+    "Gold4": 2100,
+    "Gold5": 2000,
+    "Silver1": 1900,
+    "Silver2": 1800,
+    "Silver3": 1700,
+    "Silver4": 1600,
+    "Silver5": 1500,
+    "Bronze1": 1500,
+    "Bronze2": 1100,
+    "Bronze3": 750,
+    "Bronze4": 370,
+    "Bronze5": 0
+}
 
 # Dictionary to hold players based on role preferences
 roles_needed = {
@@ -29,28 +86,37 @@ roles_needed = {
     "support": 4
 }
 
-# Command to join the PUG
-@bot.command()
-async def join(ctx, battle_tag: str, rank: int, preferred_role: str, secondary_role: str):
+@bot.tree.command(name="join", description="Join the PUG")
+async def join(interaction: discord.Interaction, 
+               battletag: str, 
+               role: Literal["Tank", "Damage", "Support"], 
+               division: Literal["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master", "Grandmaster", "Champion"], 
+               tier: Literal["1", "2", "3", "4", "5"], 
+               secondary_role: Literal["Tank", "Damage", "Support"]):
+
     if len(player_pool) >= 10:
-        await ctx.send("Player pool is already full. Wait for the next game!")
+        await interaction.response.send_message("Player pool is already full. Wait for the next game!", ephemeral=True)
         return
     
-    # Validate the input for roles
-    if preferred_role not in ["tank", "damage", "support"] or secondary_role not in ["tank", "damage", "support"]:
-        await ctx.send("Invalid role. Use one of the following: tank, damage, support.")
-        return
+    rank = division + tier
+    sr = conversion[rank]
     
     # Add player to the player pool
-    player = Player(battle_tag, rank, preferred_role, secondary_role)
+    player = Player(battletag, role, division, tier, sr, secondary_role)
     player_pool.append(player)
-    await ctx.send(f"{battle_tag} has joined the game! Current players: {len(player_pool)}/10")
+
+    embed=discord.Embed(title=f"Joined! {len(player_pool)}/10", color=0x00ff00)
+    embed.add_field(name="Battle Tag", value=player.battle_tag, inline=False)
+    embed.add_field(name="Role", value=player.preferred_role.title(), inline=False)
+    embed.add_field(name="Rank", value=f"{player.division.title()} {player.tier}", inline=True)
+    await interaction.response.send_message(embed=embed, ephemeral=False)
 
     # Once 10 players are in the pool, sort and create teams
     if len(player_pool) == 10:
-        await ctx.send("10 players have joined.")
+        await interaction.channel.send("10 players have joined. Generating teams...")
         team1, team2 = sort_players(player_pool)
-        await display_teams(ctx, team1, team2)
+        channel = interaction.channel_id
+        await display_teams(channel, team1, team2)
 
 # Function to sort players into roles and teams
 def sort_players(players):
@@ -58,7 +124,7 @@ def sort_players(players):
     damage = []
     supports = []
 
-    # Step 1: Assign players by their preferred roles
+    # Assign players by their preferred roles
     for player in players:
         if player.preferred_role == "tank":
             tanks.append(player)
@@ -67,7 +133,7 @@ def sort_players(players):
         elif player.preferred_role == "support":
             supports.append(player)
 
-    # Step 2: Fill missing roles with secondary roles if necessary
+    # Fill missing roles with secondary roles if necessary
     if len(tanks) < roles_needed["tank"]:
         for player in players:
             if player.secondary_role == "tank" and player not in tanks:
@@ -89,40 +155,60 @@ def sort_players(players):
             if len(supports) == roles_needed["support"]:
                 break
 
-    # Step 3: Sort players by rank
-    tanks = sorted(tanks, key=lambda p: p.rank, reverse=True)
-    damage = sorted(damage, key=lambda p: p.rank, reverse=True)
-    supports = sorted(supports, key=lambda p: p.rank, reverse=True)
+    # Sort players by rank
+    tanks = sorted(tanks, key=lambda p: p.sr, reverse=True)
+    damage = sorted(damage, key=lambda p: p.sr, reverse=True)
+    supports = sorted(supports, key=lambda p: p.sr, reverse=True)
 
-    # Step 4: Assign players to teams, checking if there are enough players
+    # Assign players to teams, checking if there are enough players
     team1 = {
         "tank": [tanks[0]] if len(tanks) > 0 else [],
-        "damage": [damage[0], damage[2]] if len(damage) > 2 else damage[:2],
-        "support": [supports[0], supports[2]] if len(supports) > 2 else supports[:2]
+        "damage": [damage[0], damage[3]] if len(damage) > 2 else damage[:2],
+        "support": [supports[0], supports[3]] if len(supports) > 2 else supports[:2]
     }
 
     team2 = {
         "tank": [tanks[1]] if len(tanks) > 1 else [],
-        "damage": [damage[1], damage[3]] if len(damage) > 3 else damage[1:],
-        "support": [supports[1], supports[3]] if len(supports) > 3 else supports[1:]
+        "damage": [damage[1], damage[2]] if len(damage) > 3 else damage[1:],
+        "support": [supports[1], supports[2]] if len(supports) > 3 else supports[1:]
     }
 
     return team1, team2
 
-# Function to display the teams in the Discord channel
-async def display_teams(ctx, team1, team2):
-    team1_str = "Team 1:\n"
-    team2_str = "Team 2:\n"
+# Function to display the teams
+async def display_teams(channel_id, team1, team2):
+    team1_str = ""
+    team2_str = ""
+
+    role_icons = {
+        "tank": "🛡",
+        "damage": "⚔️",
+        "support": "💉"
+    }
     
+    summation = 0
+
     for role, players in team1.items():
         for player in players:
-            team1_str += f"{player.battle_tag} ({role}) - Rank: {player.rank}\n"
+            team1_str += f"{role_icons[role]} {player.battle_tag} ({player.sr})\n"
+            summation += player.sr
+
+    team1_average = summation / 5
+
+    summation = 0
 
     for role, players in team2.items():
         for player in players:
-            team2_str += f"{player.battle_tag} ({role}) - Rank: {player.rank}\n"
+            team2_str += f"{role_icons[role]} {player.battle_tag} ({player.sr})\n"
+            summation += player.sr
 
-    await ctx.send(f"**Teams for the PUG:**\n\n{team1_str}\n\n{team2_str}")
+    team2_average = summation / 5
+
+    embed=discord.Embed(title=f"Teams for the PUG:", color=0xFC9D1F)
+    embed.add_field(name=f"Team 1 ({team1_average})", value=team1_str, inline=True)
+    embed.add_field(name=f"Team 2 ({team2_average})", value=team2_str, inline=True)
+    channel = bot.get_channel(channel_id)
+    await channel.send(embed=embed)
 
 # Command to reset the PUG system (clear the player pool)
 @bot.command()
