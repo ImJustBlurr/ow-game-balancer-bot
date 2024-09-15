@@ -25,6 +25,7 @@ async def on_ready():
 # Player class to store player info
 class Player:
     def __init__(self, user_id, battle_tag, preferred_role, division, tier, sr, secondary_role):
+        self.user_id = user_id
         self.battle_tag = battle_tag
         self.preferred_role = preferred_role.lower()
         self.division = division.lower()
