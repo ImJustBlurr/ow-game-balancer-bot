@@ -24,7 +24,7 @@ async def on_ready():
 
 # Player class to store player info
 class Player:
-    def __init__(self, battle_tag, preferred_role, division, tier, sr, secondary_role):
+    def __init__(self, user_id, battle_tag, preferred_role, division, tier, sr, secondary_role):
         self.battle_tag = battle_tag
         self.preferred_role = preferred_role.lower()
         self.division = division.lower()
@@ -102,7 +102,8 @@ async def join(interaction: discord.Interaction,
     sr = conversion[rank]
     
     # Add player to the player pool
-    player = Player(battletag, role, division, tier, sr, secondary_role)
+    user_id = interaction.user.id
+    player = Player(user_id, battletag, role, division, tier, sr, secondary_role)
     player_pool.append(player)
 
     embed=discord.Embed(title=f"Joined! {len(player_pool)}/10", color=0x00ff00)
