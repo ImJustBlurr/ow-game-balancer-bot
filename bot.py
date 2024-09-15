@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import discord
 from typing import Literal
 from discord.ext import commands
+from player_sort import role_sort
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
@@ -115,66 +116,9 @@ async def join(interaction: discord.Interaction,
     # Once 10 players are in the pool, sort and create teams
     if len(player_pool) == 10:
         await interaction.channel.send("10 players have joined. Generating teams...")
-        team1, team2 = sort_players(player_pool)
+        team1, team2 = role_sort(player_pool, roles_needed)
         channel = interaction.channel_id
         await display_teams(channel, team1, team2)
-
-# Function to sort players into roles and teams
-def sort_players(players):
-    tanks = []
-    damage = []
-    supports = []
-
-    # Assign players by their preferred roles
-    for player in players:
-        if player.preferred_role == "tank":
-            tanks.append(player)
-        elif player.preferred_role == "damage":
-            damage.append(player)
-        elif player.preferred_role == "support":
-            supports.append(player)
-
-    # Fill missing roles with secondary roles if necessary
-    if len(tanks) < roles_needed["tank"]:
-        for player in players:
-            if player.secondary_role == "tank" and player not in tanks:
-                tanks.append(player)
-            if len(tanks) == roles_needed["tank"]:
-                break
-
-    if len(damage) < roles_needed["damage"]:
-        for player in players:
-            if player.secondary_role == "damage" and player not in damage:
-                damage.append(player)
-            if len(damage) == roles_needed["damage"]:
-                break
-
-    if len(supports) < roles_needed["support"]:
-        for player in players:
-            if player.secondary_role == "support" and player not in supports:
-                supports.append(player)
-            if len(supports) == roles_needed["support"]:
-                break
-
-    # Sort players by rank
-    tanks = sorted(tanks, key=lambda p: p.sr, reverse=True)
-    damage = sorted(damage, key=lambda p: p.sr, reverse=True)
-    supports = sorted(supports, key=lambda p: p.sr, reverse=True)
-
-    # Assign players to teams, checking if there are enough players
-    team1 = {
-        "tank": [tanks[0]] if len(tanks) > 0 else [],
-        "damage": [damage[0], damage[3]] if len(damage) > 2 else damage[:2],
-        "support": [supports[0], supports[3]] if len(supports) > 2 else supports[:2]
-    }
-
-    team2 = {
-        "tank": [tanks[1]] if len(tanks) > 1 else [],
-        "damage": [damage[1], damage[2]] if len(damage) > 3 else damage[1:],
-        "support": [supports[1], supports[2]] if len(supports) > 3 else supports[1:]
-    }
-
-    return team1, team2
 
 # Function to display the teams
 async def display_teams(channel_id, team1, team2):
