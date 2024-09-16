@@ -61,9 +61,9 @@ def role_sort(players, roles_needed):
 # Sorts teams and tries to find the closest teams to play against each other. Exhaustive search
 def sort_teams(players):
     # Split players into roles
-    tanks = [p for p in players if p.preferred_role == "Tank"]
-    dps = [p for p in players if p.preferred_role == "Damage"]
-    supports = [p for p in players if p.preferred_role == "Support"]
+    tanks = [p for p in players if p.preferred_role == "tank"]
+    dps = [p for p in players if p.preferred_role == "damage"]
+    supports = [p for p in players if p.preferred_role == "support"]
 
     # Function to calculate average rank of a team
     def calculate_team_rank(team):
@@ -82,8 +82,8 @@ def sort_teams(players):
         
         
         # Check role requirements
-        if sum(1 for p in team1 if p.preferred_role == "Tank") == 1 and sum(1 for p in team1 if p.preferred_role == "Damage") == 2 and sum(1 for p in team1 if p.preferred_role == "Support") == 2 and \
-        sum(1 for p in team2 if p.preferred_role == "Tank") == 1 and sum(1 for p in team2 if p.preferred_role == "Damage") == 2 and sum(1 for p in team2 if p.preferred_role == "Support") == 2:
+        if sum(1 for p in team1 if p.preferred_role == "tank") == 1 and sum(1 for p in team1 if p.preferred_role == "damage") == 2 and sum(1 for p in team1 if p.preferred_role == "support") == 2 and \
+        sum(1 for p in team2 if p.preferred_role == "tank") == 1 and sum(1 for p in team2 if p.preferred_role == "damage") == 2 and sum(1 for p in team2 if p.preferred_role == "support") == 2:
             
             # Calculate rank differences
             team1_rank = calculate_team_rank(team1)
@@ -96,4 +96,17 @@ def sort_teams(players):
                 best_team_1 = team1
                 best_team_2 = team2
     
-    return best_team_1, best_team_2
+    best_team1 = {
+        "tank": [best_team_1[0]],
+        "damage": [best_team_1[1], best_team_1[2]],
+        "support": [best_team_1[3], best_team_1[4]],
+    }
+
+    best_team2 = {
+        "tank": [best_team_2[0]],
+        "damage": [best_team_2[1], best_team_2[2]],
+        "support": [best_team_2[3], best_team_2[4]],
+    }
+
+    
+    return best_team1, best_team2
