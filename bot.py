@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import discord
 from typing import Literal
 from discord.ext import commands
-from player_sort import role_sort
+from player_sort import role_sort, sort_teams
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
@@ -118,8 +118,10 @@ async def join(interaction: discord.Interaction,
     if len(player_pool) == 10:
         await interaction.channel.send("10 players have joined. Generating teams...")
         team1, team2 = role_sort(player_pool, roles_needed)
+        altsort_team1, altsort_team2 = sort_teams(player_pool)
         channel = interaction.channel_id
         await display_teams(channel, team1, team2)
+        await display_teams(channel, altsort_team1, altsort_team2)
 
 # Function to display the teams
 async def display_teams(channel_id, team1, team2):

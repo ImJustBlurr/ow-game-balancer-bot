@@ -71,13 +71,15 @@ def sort_teams(players):
 
     # Find the best balanced teams
     min_difference = float('inf')
+
+    best_team_1 = None
+    best_team_2 = None
     
     # Iterate over all possible combinations
     for team1 in combinations(tanks + dps + supports, 5):
         team2 = [p for p in players if p not in team1]
         
-        best_team_1 = None
-        best_team_2 = None
+        
         
         # Check role requirements
         if sum(1 for p in team1 if p.preferred_role == "Tank") == 1 and sum(1 for p in team1 if p.preferred_role == "Damage") == 2 and sum(1 for p in team1 if p.preferred_role == "Support") == 2 and \
